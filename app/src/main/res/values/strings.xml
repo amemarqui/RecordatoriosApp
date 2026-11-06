@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Recordatorios</string>
+    <string name="titulo_pantalla">Mis recordatorios</string>
+    <string name="sin_resultados">No hay recordatorios para el filtro seleccionado.</string>
+    <string name="filtro_estado">Estado</string>
+    <string name="filtro_prioridad">Prioridad</string>
+    <string name="todos">Todos</string>
+</resources>
