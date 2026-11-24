@@ -13,7 +13,8 @@ data class EstiloCategoria(val etiqueta: String, val colorArgb: Long)
 
 /**
  * CONSIGNA 3 (Act. 1) — Datos simulados con List, Set y Map.
- * En la Actividad 2 estos datos son el contenido inicial del RepositorioEnMemoria.
+ * En la Actividad 3 son los datos con los que arranca el servidor simulado (la app
+ * los descarga en la primera sincronización) y se usan en las vistas previas.
  */
 object RepositorioSimulado {
 
@@ -52,8 +53,8 @@ object RepositorioSimulado {
     /** LIST: recordatorios simulados (inmutable). */
     fun recordatorios(ahora: LocalDateTime = LocalDateTime.now()): List<Recordatorio> = listOf(
         Recordatorio(
-            id = 1,
-            titulo = "Entregar Actividad 2 de Programación Mobile",
+            id = "5b0c1d2e-0000-4000-8000-000000000001",
+            titulo = "Entregar Actividad 3 de Programación Mobile",
             categoria = ESTUDIO,
             prioridad = Prioridad.Alta,
             descripcion = "Subir el PDF con las capturas y el enlace al repositorio",
@@ -61,7 +62,7 @@ object RepositorioSimulado {
             minutosAvisoPrevio = 120
         ),
         Recordatorio(
-            id = 2,
+            id = "5b0c1d2e-0000-4000-8000-000000000002",
             titulo = "Reunión de seguimiento del sprint",
             categoria = TRABAJO,
             prioridad = Prioridad.Media,
@@ -70,7 +71,7 @@ object RepositorioSimulado {
             minutosAvisoPrevio = 15
         ),
         Recordatorio(
-            id = 3,
+            id = "5b0c1d2e-0000-4000-8000-000000000003",
             titulo = "Turno con el médico clínico",
             categoria = SALUD,
             prioridad = Prioridad.Alta,
@@ -78,13 +79,13 @@ object RepositorioSimulado {
             fechaLimite = ahora.minusDays(1)
         ),
         Recordatorio(
-            id = 4,
+            id = "5b0c1d2e-0000-4000-8000-000000000004",
             titulo = "Comprar lamparitas LED",
             categoria = HOGAR,
             prioridad = Prioridad.Baja
         ),
         Recordatorio(
-            id = 5,
+            id = "5b0c1d2e-0000-4000-8000-000000000005",
             titulo = "Renovar la licencia de conducir",
             categoria = TRAMITES,
             prioridad = Prioridad.Alta,
@@ -92,14 +93,14 @@ object RepositorioSimulado {
             fechaLimite = ahora.minusDays(3)
         ),
         Recordatorio(
-            id = 6,
+            id = "5b0c1d2e-0000-4000-8000-000000000006",
             titulo = "Leer el material del Módulo 2",
             categoria = ESTUDIO,
             prioridad = Prioridad.Media,
             estado = EstadoRecordatorio.Pospuesto(ahora.plusDays(4))
         ),
         Recordatorio(
-            id = 7,
+            id = "5b0c1d2e-0000-4000-8000-000000000007",
             titulo = "Revisar casos de prueba automatizados",
             categoria = TRABAJO,
             prioridad = Prioridad.Alta,
@@ -107,7 +108,7 @@ object RepositorioSimulado {
             fechaLimite = ahora.plusHours(6)
         ),
         Recordatorio(
-            id = 8,
+            id = "5b0c1d2e-0000-4000-8000-000000000008",
             titulo = "Pagar la factura de luz",
             categoria = HOGAR,
             prioridad = Prioridad.Media,

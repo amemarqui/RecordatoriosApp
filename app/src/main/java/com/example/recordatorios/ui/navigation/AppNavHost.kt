@@ -8,14 +8,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.recordatorios.ui.crear.CrearRecordatorioRoute
+import com.example.recordatorios.ui.ajustes.AjustesRoute
 import com.example.recordatorios.ui.detalle.DetalleRoute
+import com.example.recordatorios.ui.formulario.FormularioRoute
 import com.example.recordatorios.ui.listado.ListadoRoute
 
 /**
- * Grafo de navegación. El NavController se crea y se usa SOLO acá:
- * las pantallas reciben lambdas (onCrearRecordatorio, onRecordatorioClick,
- * onGuardado, onCancelar, onVolver) y no saben que existe Navigation.
+ * Grafo de navegación. El NavController se usa SOLO acá: las pantallas avisan
+ * con lambdas y no saben que existe Navigation.
  */
 @Composable
 fun AppNavHost(
@@ -24,45 +24,56 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Rutas.LISTADO,   // destino inicial
+        startDestination = Rutas.LISTADO,
         modifier = modifier
     ) {
         composable(route = Rutas.LISTADO) {
             ListadoRoute(
-                onCrearRecordatorio = {
-                    // launchSingleTop evita abrir dos formularios si se toca rápido dos veces
-                    navController.navigate(Rutas.CREAR) { launchSingleTop = true }
-                },
-                onRecordatorioClick = { id ->
-                    navController.navigate(Rutas.detalle(id))
-                }
+                onCrearRecordatorio = { navController.navigate(Rutas.CREAR) { launchSingleTop = true } },
+                onRecordatorioClick = { id -> navController.navigate(Rutas.detalle(id)) },
+                onAbrirAjustes = { navController.navigate(Rutas.AJUSTES) { launchSingleTop = true } }
             )
         }
 
         composable(route = Rutas.CREAR) {
-            CrearRecordatorioRoute(
-                // Después de guardar o cancelar se vuelve al listado que ya estaba
-                // en la pila (no se agrega otra copia del listado al historial)
-                onGuardado = { navController.volverAlListado() },
-                onCancelar = { navController.volverAlListado() }
+            FormularioRoute(
+                onGuardado = { navController.volverDesde(Rutas.CREAR) },
+                onCancelar = { navController.volverDesde(Rutas.CREAR) }
+            )
+        }
+
+        composable(
+            route = Rutas.EDITAR,
+            arguments = listOf(navArgument(Rutas.ARG_ID) { type = NavType.StringType })
+        ) {
+            // Al terminar de editar se vuelve al detalle, que se actualiza solo (Flow de Room)
+            FormularioRoute(
+                onGuardado = { navController.volverDesde(Rutas.EDITAR) },
+                onCancelar = { navController.volverDesde(Rutas.EDITAR) }
             )
         }
 
         composable(
             route = Rutas.DETALLE,
-            arguments = listOf(navArgument(Rutas.ARG_ID) { type = NavType.IntType })
+            arguments = listOf(navArgument(Rutas.ARG_ID) { type = NavType.StringType })
         ) {
-            // El id lo lee el DetalleViewModel desde el SavedStateHandle
-            DetalleRoute(onVolver = { navController.volverAlListado() })
+            DetalleRoute(
+                onVolver = { navController.volverDesde(Rutas.DETALLE) },
+                onEditar = { id -> navController.navigate(Rutas.editar(id)) { launchSingleTop = true } }
+            )
+        }
+
+        composable(route = Rutas.AJUSTES) {
+            AjustesRoute(onVolver = { navController.volverDesde(Rutas.AJUSTES) })
         }
     }
 }
 
 /**
- * Vuelve al listado con popBackStack(). Uso la versión que recibe la ruta destino
- * porque si el usuario toca "Volver" dos veces rápido, el popBackStack() común
- * sacaría también el listado y la app quedaría en blanco. Así, el segundo toque no hace nada.
+ * popBackStack() solo si la pantalla que pide volver es la que está arriba.
+ * Así, si se toca "Volver" dos veces rápido, el segundo toque no saca también
+ * el listado (lo que dejaría la app en blanco).
  */
-private fun NavHostController.volverAlListado() {
-    popBackStack(route = Rutas.LISTADO, inclusive = false)
+private fun NavHostController.volverDesde(ruta: String) {
+    if (currentDestination?.route == ruta) popBackStack()
 }

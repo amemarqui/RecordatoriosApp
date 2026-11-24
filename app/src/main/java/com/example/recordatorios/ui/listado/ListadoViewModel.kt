@@ -5,119 +5,104 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.recordatorios.data.AppContainer
-import com.example.recordatorios.data.Escenario
+import com.example.recordatorios.contenedor
+import com.example.recordatorios.data.InfoSincronizacion
 import com.example.recordatorios.data.RecordatoriosRepository
-import com.example.recordatorios.data.SimuladorEscenarios
 import com.example.recordatorios.data.filtrarPorEstado
 import com.example.recordatorios.data.filtrarPorPrioridad
-import com.example.recordatorios.data.ordenados
+import com.example.recordatorios.data.sync.mensaje
 import com.example.recordatorios.model.EstadoRecordatorio
 import com.example.recordatorios.model.Prioridad
 import com.example.recordatorios.model.Recordatorio
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 /**
- * ViewModel del listado. Depende de las INTERFACES RecordatoriosRepository
- * y SimuladorEscenarios, no de RepositorioEnMemoria.
- * No guarda referencias a Activity, View ni Context.
+ * Actividad 3: la lista sale de Room (vía repositorio) como Flow, así cualquier cambio
+ * en la base (crear, editar, borrar, sincronizar) aparece solo en la pantalla.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ListadoViewModel(
-    private val repositorio: RecordatoriosRepository,
-    private val simulador: SimuladorEscenarios
+    private val repositorio: RecordatoriosRepository
 ) : ViewModel() {
 
-    // Estado modificable solo desde acá adentro...
-    private val _uiState = MutableStateFlow<ListadoUiState>(ListadoUiState.Cargando)
-    // ...y hacia la UI se expone de solo lectura
-    val uiState: StateFlow<ListadoUiState> = _uiState.asStateFlow()
+    private val filtroEstado = MutableStateFlow<KClass<out EstadoRecordatorio>?>(null)
+    private val filtroPrioridad = MutableStateFlow<Prioridad?>(null)
+    private val recargas = MutableStateFlow(0)
 
-    private var ultimaLista: List<Recordatorio> = emptyList()
-    private var filtroEstado: KClass<out EstadoRecordatorio>? = null
-    private var filtroPrioridad: Prioridad? = null
-    private var trabajoCarga: Job? = null
-
-    init {
-        cargarRecordatorios()
-    }
-
-    /** Carga inicial (y reintento). Corre en viewModelScope, así la UI no se bloquea. */
-    fun cargarRecordatorios() {
-        trabajoCarga?.cancel()
-        trabajoCarga = viewModelScope.launch {
-            _uiState.update { ListadoUiState.Cargando }
-            repositorio.observarRecordatorios()
+    val uiState: StateFlow<ListadoUiState> = recargas
+        .flatMapLatest {
+            combine(repositorio.observarRecordatorios(), filtroEstado, filtroPrioridad) { lista, estado, prioridad ->
+                armarEstado(lista, estado, prioridad)
+            }
+                .onStart { emit(ListadoUiState.Cargando) }
                 .catch { e ->
-                    _uiState.update {
-                        ListadoUiState.Error(e.message ?: "Ocurrió un error inesperado.")
-                    }
-                }
-                .collect { lista ->
-                    ultimaLista = lista
-                    _uiState.update { armarEstado() }
+                    emit(ListadoUiState.Error("No se pudieron leer los recordatorios guardados. ${e.message ?: ""}".trim()))
                 }
         }
-    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListadoUiState.Cargando)
+
+    val sincronizacion: StateFlow<InfoSincronizacion> = repositorio.observarSincronizacion()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InfoSincronizacion())
+
+    /** Mensaje corto para el Snackbar (resultado de "Sincronizar ahora"). */
+    private val _mensaje = MutableStateFlow<String?>(null)
+    val mensaje: StateFlow<String?> = _mensaje.asStateFlow()
 
     fun onReintentar() {
-        cargarRecordatorios()
+        recargas.update { it + 1 }
     }
 
     fun onFiltroEstadoChange(filtro: KClass<out EstadoRecordatorio>?) {
-        filtroEstado = filtro
-        actualizarSiHayDatos()
+        filtroEstado.value = filtro
     }
 
     fun onFiltroPrioridadChange(filtro: Prioridad?) {
-        filtroPrioridad = filtro
-        actualizarSiHayDatos()
+        filtroPrioridad.value = filtro
     }
 
-    /** Menú de simulación: cambia el escenario y vuelve a cargar para ver el resultado. */
-    fun onSimularEscenario(escenario: Escenario) {
-        simulador.aplicarEscenario(escenario)
-        // El error al guardar se ve en el formulario, no hace falta recargar
-        if (escenario != Escenario.ERROR_GUARDADO) {
-            filtroEstado = null
-            filtroPrioridad = null
-            cargarRecordatorios()
+    fun onSincronizarAhora() {
+        viewModelScope.launch {
+            val resultado = repositorio.sincronizarAhora()
+            _mensaje.value = resultado.mensaje()
         }
     }
 
-    private fun actualizarSiHayDatos() {
-        if (_uiState.value is ListadoUiState.ConDatos) {
-            _uiState.update { armarEstado() }
-        }
+    fun onMensajeMostrado() {
+        _mensaje.value = null
     }
 
-    /** Siempre crea una instancia NUEVA del estado (no se modifica la anterior). */
-    private fun armarEstado(): ListadoUiState =
-        if (ultimaLista.isEmpty()) {
+    private fun armarEstado(
+        lista: List<Recordatorio>,
+        estado: KClass<out EstadoRecordatorio>?,
+        prioridad: Prioridad?
+    ): ListadoUiState =
+        if (lista.isEmpty()) {
             ListadoUiState.Vacio
         } else {
             ListadoUiState.ConDatos(
-                recordatorios = ultimaLista,
-                visibles = ultimaLista
-                    .filtrarPorEstado(filtroEstado)
-                    .filtrarPorPrioridad(filtroPrioridad)
-                    .ordenados(),
-                filtroEstado = filtroEstado,
-                filtroPrioridad = filtroPrioridad
+                recordatorios = lista,
+                // el orden ya viene del repositorio (preferencia de DataStore)
+                visibles = lista.filtrarPorEstado(estado).filtrarPorPrioridad(prioridad),
+                filtroEstado = estado,
+                filtroPrioridad = prioridad
             )
         }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                ListadoViewModel(AppContainer.repositorio, AppContainer.simulador)
-            }
+            initializer { ListadoViewModel(contenedor().repositorio) }
         }
     }
 }

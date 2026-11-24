@@ -7,56 +7,97 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.example.recordatorios.data.AppContainer
+import com.example.recordatorios.contenedor
 import com.example.recordatorios.data.RecordatoriosRepository
+import com.example.recordatorios.data.ResultadoOperacion
 import com.example.recordatorios.ui.navigation.Rutas
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Recibe SOLO el id del recordatorio (argumento de navegación) a través del
- * SavedStateHandle y busca el registro completo en el repositorio.
+ * Recibe SOLO el id por navegación y observa ese registro en Room:
+ * si se edita, se completa o se sincroniza, la pantalla se actualiza sola.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DetalleViewModel(
     savedStateHandle: SavedStateHandle,
     private val repositorio: RecordatoriosRepository
 ) : ViewModel() {
 
-    private val idRecordatorio: Int = checkNotNull(savedStateHandle.get<Int>(Rutas.ARG_ID)) {
+    val idRecordatorio: String = checkNotNull(savedStateHandle.get<String>(Rutas.ARG_ID)) {
         "Falta el argumento ${Rutas.ARG_ID} en la navegación"
     }
 
-    private val _uiState = MutableStateFlow<DetalleUiState>(DetalleUiState.Cargando)
-    val uiState: StateFlow<DetalleUiState> = _uiState.asStateFlow()
+    private val eliminado = MutableStateFlow(false)
+    private val procesando = MutableStateFlow(false)
+    private val mensaje = MutableStateFlow<String?>(null)
+    private val recargas = MutableStateFlow(0)
 
-    init {
-        cargar()
+    val uiState: StateFlow<DetalleUiState> = recargas
+        .flatMapLatest {
+            combine(
+                repositorio.observarPorId(idRecordatorio),
+                eliminado,
+                procesando,
+                mensaje
+            ) { recordatorio, fueEliminado, estaProcesando, textoMensaje ->
+                when {
+                    fueEliminado -> DetalleUiState.Eliminado
+                    recordatorio == null -> DetalleUiState.NoEncontrado(idRecordatorio)
+                    else -> DetalleUiState.Encontrado(recordatorio, estaProcesando, textoMensaje)
+                }
+            }
+                .onStart { emit(DetalleUiState.Cargando) }
+                .catch { emit(DetalleUiState.Error("No se pudo leer el recordatorio.")) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetalleUiState.Cargando)
+
+    fun onReintentar() {
+        recargas.update { it + 1 }
     }
 
-    fun cargar() {
+    fun onCambiarCompletado(completado: Boolean) = ejecutar {
+        repositorio.cambiarCompletado(idRecordatorio, completado)
+    }
+
+    fun onReintentarSincronizacion() = ejecutar {
+        repositorio.reintentarSincronizacion(idRecordatorio)
+    }
+
+    fun onEliminar() = ejecutar {
+        repositorio.eliminar(idRecordatorio).also {
+            if (it is ResultadoOperacion.Exito) eliminado.value = true
+        }
+    }
+
+    fun onMensajeMostrado() {
+        mensaje.value = null
+    }
+
+    /** Ejecuta una acción del repositorio mostrando "procesando" y el error si falla. */
+    private fun ejecutar(accion: suspend () -> ResultadoOperacion<*>) {
+        if (procesando.value) return
         viewModelScope.launch {
-            _uiState.update { DetalleUiState.Cargando }
-            val nuevoEstado = try {
-                val recordatorio = repositorio.obtenerPorId(idRecordatorio)
-                if (recordatorio != null) DetalleUiState.Encontrado(recordatorio)
-                else DetalleUiState.NoEncontrado(idRecordatorio)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                DetalleUiState.Error(e.message ?: "No se pudo cargar el recordatorio.")
-            }
-            _uiState.update { nuevoEstado }
+            procesando.value = true
+            val resultado = accion()
+            if (resultado is ResultadoOperacion.Error) mensaje.value = resultado.mensaje
+            procesando.value = false
         }
     }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                DetalleViewModel(createSavedStateHandle(), AppContainer.repositorio)
+                DetalleViewModel(createSavedStateHandle(), contenedor().repositorio)
             }
         }
     }

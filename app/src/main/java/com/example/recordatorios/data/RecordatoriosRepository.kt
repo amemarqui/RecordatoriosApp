@@ -1,37 +1,53 @@
 package com.example.recordatorios.data
 
+import com.example.recordatorios.data.sync.ResultadoSincronizacion
 import com.example.recordatorios.model.Categoria
 import com.example.recordatorios.model.Prioridad
 import com.example.recordatorios.model.Recordatorio
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDateTime
 
-/**
- * Datos que carga el usuario en el formulario. No lleva id porque
- * el id lo asigna la fuente de datos al guardar.
- */
+/** Datos que carga el usuario en el formulario (crear o editar). */
 data class NuevoRecordatorio(
     val titulo: String,
     val descripcion: String?,
     val categoria: Categoria,
-    val prioridad: Prioridad
+    val prioridad: Prioridad,
+    val fechaLimite: LocalDateTime? = null
+)
+
+/** Resultado de una operación local (Room). */
+sealed interface ResultadoOperacion<out T> {
+    data class Exito<T>(val valor: T) : ResultadoOperacion<T>
+    data class Error(val mensaje: String) : ResultadoOperacion<Nothing>
+}
+
+/** Resumen del estado de sincronización para mostrar en la interfaz. */
+data class InfoSincronizacion(
+    val conectado: Boolean = true,
+    val sincronizando: Boolean = false,
+    val cambiosSinSincronizar: Int = 0,
+    val ultimoResultado: ResultadoSincronizacion? = null,
+    val ultimaVezMs: Long? = null
 )
 
 /**
- * Contrato de la fuente de datos (consigna 4).
- * Los ViewModel dependen de esta interfaz y no de una lista concreta,
- * así más adelante se puede cambiar por Room o por una API sin tocar las pantallas.
+ * Contrato de la capa de datos para los ViewModel (consigna 3).
+ * Local-first: todo lo que se lee sale de Room, y todo lo que se escribe va primero a Room;
+ * el servicio remoto se sincroniza aparte. Ningún DTO ni entidad sale de acá.
  */
 interface RecordatoriosRepository {
-
-    /** Flujo con la lista actual; vuelve a emitir cada vez que se guarda algo. */
+    /** Lista ya filtrada y ordenada según las preferencias de DataStore. */
     fun observarRecordatorios(): Flow<List<Recordatorio>>
+    fun observarPorId(id: String): Flow<Recordatorio?>
+    fun observarSincronizacion(): Flow<InfoSincronizacion>
 
-    /** Devuelve el recordatorio con ese id o null si no existe. */
-    suspend fun obtenerPorId(id: Int): Recordatorio?
+    suspend fun crear(nuevo: NuevoRecordatorio): ResultadoOperacion<String>
+    suspend fun actualizar(id: String, datos: NuevoRecordatorio): ResultadoOperacion<Unit>
+    suspend fun cambiarCompletado(id: String, completado: Boolean): ResultadoOperacion<Unit>
+    suspend fun eliminar(id: String): ResultadoOperacion<Unit>
+    suspend fun reintentarSincronizacion(id: String): ResultadoOperacion<Unit>
+    suspend fun sincronizarAhora(): ResultadoSincronizacion
 
-    /** Guarda un recordatorio nuevo y lo devuelve con su id asignado. */
-    suspend fun guardar(nuevo: NuevoRecordatorio): Recordatorio
-
-    /** Opciones válidas para el selector de categoría del formulario. */
     fun categoriasDisponibles(): Set<Categoria>
 }

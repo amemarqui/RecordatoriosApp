@@ -33,7 +33,7 @@ import com.example.recordatorios.model.Prioridad
 /*
  * Componentes CONTROLADOS del formulario: no guardan estado propio.
  * Reciben el valor actual y avisan los cambios con una lambda;
- * el estado vive en el CrearRecordatorioViewModel.
+ * el estado vive en el FormularioViewModel.
  */
 
 /**

@@ -70,13 +70,13 @@ class ModeloTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun noPermiteTituloVacio() {
-        Recordatorio(id = 1, titulo = " ", categoria = Categoria(1, "X"), prioridad = Prioridad.Baja)
+        Recordatorio(id = "r1", titulo = " ", categoria = Categoria(1, "X"), prioridad = Prioridad.Baja)
     }
 
     @Test
     fun validadorAcumulaErrores() {
         val r = ValidadorRecordatorio.validar(
-            id = 0, titulo = "", categoria = null, prioridad = null,
+            id = "", titulo = "", categoria = null, prioridad = null,
             minutosAvisoPrevio = 5, ahora = ahora
         )
         assertTrue(r is ResultadoValidacion.Invalido)
@@ -118,7 +118,7 @@ class ModeloTest {
     @Test
     fun validadorAceptaDatosCorrectos() {
         val r = ValidadorRecordatorio.validar(
-            id = 10, titulo = "  Estudiar Kotlin ", categoria = RepositorioSimulado.ESTUDIO,
+            id = "r10", titulo = "  Estudiar Kotlin ", categoria = RepositorioSimulado.ESTUDIO,
             prioridad = Prioridad.Media, fechaLimite = ahora.plusDays(1), ahora = ahora
         )
         assertTrue(r is ResultadoValidacion.Valido)

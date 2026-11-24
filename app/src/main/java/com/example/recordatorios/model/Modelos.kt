@@ -52,13 +52,23 @@ data class Ubicacion(
 }
 
 /**
+ * Estado de sincronización de un recordatorio con el servicio remoto (Actividad 3).
+ * Lo muestra la interfaz para que se sepa si un cambio ya fue confirmado.
+ */
+enum class EstadoSincronizacion(val etiqueta: String) {
+    SINCRONIZADO("Sincronizado"),
+    PENDIENTE("Pendiente de sincronizar"),
+    ERROR("Error al sincronizar")
+}
+
+/**
  * Recordatorio. Los datos opcionales (descripción, fecha límite, ubicación,
  * aviso) son nullable con valor por defecto null.
  *
  * El bloque init garantiza que nunca pueda existir un Recordatorio inválido.
  */
 data class Recordatorio(
-    val id: Int,
+    val id: String,                 // Actividad 3: UUID estable, el mismo en Room y en el servidor
     val titulo: String,
     val categoria: Categoria,
     val prioridad: Prioridad,
@@ -66,10 +76,13 @@ data class Recordatorio(
     val descripcion: String? = null,
     val fechaLimite: LocalDateTime? = null,
     val ubicacion: Ubicacion? = null,
-    val minutosAvisoPrevio: Int? = null
+    val minutosAvisoPrevio: Int? = null,
+    val fechaCreacion: LocalDateTime? = null,
+    val sincronizacion: EstadoSincronizacion = EstadoSincronizacion.SINCRONIZADO,
+    val errorSincronizacion: String? = null
 ) {
     init {
-        require(id > 0) { "El id debe ser positivo" }
+        require(id.isNotBlank()) { "El id no puede estar vacío" }
         require(titulo.isNotBlank()) { "El título no puede estar vacío" }
         require(descripcion == null || descripcion.length <= MAX_DESCRIPCION) {
             "La descripción supera los $MAX_DESCRIPCION caracteres"

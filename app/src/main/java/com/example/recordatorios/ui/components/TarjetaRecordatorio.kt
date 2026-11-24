@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,12 +24,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.recordatorios.data.RepositorioSimulado
 import com.example.recordatorios.model.EstadoRecordatorio
+import com.example.recordatorios.model.EstadoSincronizacion
 import com.example.recordatorios.model.Prioridad
 import com.example.recordatorios.model.Recordatorio
 import com.example.recordatorios.ui.theme.PrioridadAlta
@@ -94,27 +99,45 @@ fun TarjetaRecordatorio(
     }
 }
 
-/** Categoría, prioridad y estado como "pastillas". Se usa en la tarjeta y en el detalle. */
+/**
+ * Categoría, prioridad, estado y (Actividad 3) estado de sincronización como "pastillas".
+ * Se usa en la tarjeta y en el detalle. FlowRow pasa a la línea siguiente si no entran.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilaEtiquetas(recordatorio: Recordatorio, modifier: Modifier = Modifier) {
     val estilo = RepositorioSimulado.estiloDe(recordatorio.categoria)
-    Row(
+    FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Etiqueta("${estilo.etiqueta} · ${recordatorio.categoria.nombre}", Color(estilo.colorArgb))
         Etiqueta(recordatorio.prioridad.etiqueta, colorPrioridad(recordatorio.prioridad))
         Etiqueta(recordatorio.estado.etiqueta, MaterialTheme.colorScheme.secondary)
+        EtiquetaSincronizacion(recordatorio.sincronizacion)
+    }
+}
+
+/** No se muestra nada si ya está sincronizado; si no, se indica con texto (no solo color). */
+@Composable
+fun EtiquetaSincronizacion(estado: EstadoSincronizacion, modifier: Modifier = Modifier) {
+    when (estado) {
+        EstadoSincronizacion.SINCRONIZADO -> Unit
+        EstadoSincronizacion.PENDIENTE -> Etiqueta("⟳ Sin sincronizar", MaterialTheme.colorScheme.tertiary, modifier)
+        EstadoSincronizacion.ERROR -> Etiqueta("⚠ Error de sincronización", MaterialTheme.colorScheme.error, modifier)
     }
 }
 
 @Composable
 fun Etiqueta(texto: String, color: Color, modifier: Modifier = Modifier) {
+    // En tema oscuro se aclara el texto para que tenga buen contraste
+    val oscuro = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val colorTexto = if (oscuro) lerp(color, Color.White, 0.55f) else color
     Surface(
         modifier = modifier,
-        color = color.copy(alpha = 0.15f),
-        contentColor = color,
+        color = color.copy(alpha = if (oscuro) 0.3f else 0.15f),
+        contentColor = colorTexto,
         shape = RoundedCornerShape(50)
     ) {
         Text(

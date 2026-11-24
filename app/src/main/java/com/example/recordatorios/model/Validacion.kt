@@ -1,5 +1,6 @@
 package com.example.recordatorios.model
 
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /** Resultado de validar los datos de un recordatorio antes de crearlo. */
@@ -17,10 +18,12 @@ data class ErroresFormulario(
     val titulo: String? = null,
     val descripcion: String? = null,
     val categoria: String? = null,
-    val prioridad: String? = null
+    val prioridad: String? = null,
+    val fechaLimite: String? = null
 ) {
     val hayErrores: Boolean
-        get() = titulo != null || descripcion != null || categoria != null || prioridad != null
+        get() = titulo != null || descripcion != null || categoria != null ||
+            prioridad != null || fechaLimite != null
 }
 
 /**
@@ -42,7 +45,9 @@ object ValidadorRecordatorio {
         descripcion: String,
         categoria: Categoria?,
         prioridad: Prioridad?,
-        categoriasValidas: Set<Categoria>
+        categoriasValidas: Set<Categoria>,
+        fechaLimite: LocalDate? = null,      // Actividad 3: fecha opcional
+        hoy: LocalDate = LocalDate.now()
     ): ErroresFormulario {
         val tituloLimpio = titulo.trim()
         return ErroresFormulario(
@@ -61,13 +66,16 @@ object ValidadorRecordatorio {
                 categoria !in categoriasValidas -> "La categoría no es una opción válida"
                 else -> null
             },
-            prioridad = if (prioridad == null) "Seleccioná una prioridad" else null
+            prioridad = if (prioridad == null) "Seleccioná una prioridad" else null,
+            fechaLimite = if (fechaLimite != null && fechaLimite.isBefore(hoy)) {
+                "La fecha límite no puede ser anterior a hoy"
+            } else null
         )
     }
 
     /** Validación completa de la Actividad 1 (se mantiene, ahora con las reglas nuevas del título y la descripción). */
     fun validar(
-        id: Int,
+        id: String,
         titulo: String,
         categoria: Categoria?,
         prioridad: Prioridad?,
@@ -80,7 +88,7 @@ object ValidadorRecordatorio {
     ): ResultadoValidacion {
         val errores = mutableListOf<String>()
 
-        if (id <= 0) errores += "El id debe ser positivo"
+        if (id.isBlank()) errores += "El id es obligatorio"
         if (titulo.trim().length < Recordatorio.MIN_TITULO) {
             errores += "El título debe tener al menos ${Recordatorio.MIN_TITULO} caracteres"
         }
