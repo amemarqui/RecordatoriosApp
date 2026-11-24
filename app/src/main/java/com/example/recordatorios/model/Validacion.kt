@@ -9,12 +9,63 @@ sealed class ResultadoValidacion {
 }
 
 /**
+ * Errores del formulario separados por campo (Actividad 2).
+ * Así cada campo puede mostrar su propio mensaje con isError + supportingText.
+ * null = el campo está bien.
+ */
+data class ErroresFormulario(
+    val titulo: String? = null,
+    val descripcion: String? = null,
+    val categoria: String? = null,
+    val prioridad: String? = null
+) {
+    val hayErrores: Boolean
+        get() = titulo != null || descripcion != null || categoria != null || prioridad != null
+}
+
+/**
  * Reglas de validación del producto. A diferencia del init de Recordatorio
- * (que lanza una excepción), este validador junta todos los errores y los
- * devuelve sin romper la app; es lo que usará el formulario en el módulo 2.
+ * (que lanza una excepción), este validador junta los errores y los
+ * devuelve sin romper la app.
  */
 object ValidadorRecordatorio {
 
+    /**
+     * Reglas del formulario de creación (Actividad 2, consigna 2):
+     * - título: al menos 4 caracteres después del trim()
+     * - descripción: máximo 200 caracteres
+     * - categoría: tiene que ser una de las opciones definidas
+     * - prioridad: obligatoria
+     */
+    fun validarFormulario(
+        titulo: String,
+        descripcion: String,
+        categoria: Categoria?,
+        prioridad: Prioridad?,
+        categoriasValidas: Set<Categoria>
+    ): ErroresFormulario {
+        val tituloLimpio = titulo.trim()
+        return ErroresFormulario(
+            titulo = when {
+                tituloLimpio.length < Recordatorio.MIN_TITULO ->
+                    "El título debe tener al menos ${Recordatorio.MIN_TITULO} caracteres"
+                tituloLimpio.length > Recordatorio.MAX_TITULO ->
+                    "El título no puede superar ${Recordatorio.MAX_TITULO} caracteres"
+                else -> null
+            },
+            descripcion = if (descripcion.length > Recordatorio.MAX_DESCRIPCION) {
+                "La descripción no puede superar ${Recordatorio.MAX_DESCRIPCION} caracteres"
+            } else null,
+            categoria = when {
+                categoria == null -> "Seleccioná una categoría"
+                categoria !in categoriasValidas -> "La categoría no es una opción válida"
+                else -> null
+            },
+            prioridad = if (prioridad == null) "Seleccioná una prioridad" else null
+        )
+    }
+
+    /** Validación completa de la Actividad 1 (se mantiene, ahora con las reglas nuevas del título y la descripción). */
     fun validar(
         id: Int,
         titulo: String,
@@ -30,9 +81,14 @@ object ValidadorRecordatorio {
         val errores = mutableListOf<String>()
 
         if (id <= 0) errores += "El id debe ser positivo"
-        if (titulo.isBlank()) errores += "El título es obligatorio"
-        if (titulo.length > Recordatorio.MAX_TITULO) {
+        if (titulo.trim().length < Recordatorio.MIN_TITULO) {
+            errores += "El título debe tener al menos ${Recordatorio.MIN_TITULO} caracteres"
+        }
+        if (titulo.trim().length > Recordatorio.MAX_TITULO) {
             errores += "El título no puede superar ${Recordatorio.MAX_TITULO} caracteres"
+        }
+        if ((descripcion?.length ?: 0) > Recordatorio.MAX_DESCRIPCION) {
+            errores += "La descripción no puede superar ${Recordatorio.MAX_DESCRIPCION} caracteres"
         }
         if (categoria == null) errores += "Debe seleccionar una categoría"
         if (prioridad == null) errores += "Debe seleccionar una prioridad"
@@ -63,7 +119,7 @@ object ValidadorRecordatorio {
                 categoria = categoria,
                 prioridad = prioridad,
                 estado = estado,
-                descripcion = descripcion?.takeIf { it.isNotBlank() },
+                descripcion = descripcion?.trim()?.takeIf { it.isNotEmpty() },
                 fechaLimite = fechaLimite,
                 ubicacion = ubicacion,
                 minutosAvisoPrevio = minutosAvisoPrevio

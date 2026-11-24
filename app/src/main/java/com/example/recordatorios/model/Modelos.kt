@@ -71,6 +71,9 @@ data class Recordatorio(
     init {
         require(id > 0) { "El id debe ser positivo" }
         require(titulo.isNotBlank()) { "El título no puede estar vacío" }
+        require(descripcion == null || descripcion.length <= MAX_DESCRIPCION) {
+            "La descripción supera los $MAX_DESCRIPCION caracteres"
+        }
         require(titulo.length <= MAX_TITULO) { "El título supera los $MAX_TITULO caracteres" }
         require(minutosAvisoPrevio == null || minutosAvisoPrevio > 0) {
             "El aviso previo debe ser mayor a 0 minutos"
@@ -81,14 +84,8 @@ data class Recordatorio(
     }
 
     companion object {
+        const val MIN_TITULO = 4          // Actividad 2: mínimo después de hacer trim()
         const val MAX_TITULO = 60
+        const val MAX_DESCRIPCION = 200   // Actividad 2
     }
-}
-
-/** Estado de la pantalla principal (UI state). */
-sealed class EstadoUi {
-    data object Cargando : EstadoUi()
-    data class Exito(val recordatorios: List<Recordatorio>) : EstadoUi()
-    data object Vacio : EstadoUi()
-    data class Error(val mensaje: String) : EstadoUi()
 }

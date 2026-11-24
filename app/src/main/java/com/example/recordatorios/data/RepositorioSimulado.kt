@@ -12,7 +12,8 @@ import kotlin.reflect.KClass
 data class EstiloCategoria(val etiqueta: String, val colorArgb: Long)
 
 /**
- * CONSIGNA 3 — Datos simulados con List, Set y Map.
+ * CONSIGNA 3 (Act. 1) — Datos simulados con List, Set y Map.
+ * En la Actividad 2 estos datos son el contenido inicial del RepositorioEnMemoria.
  */
 object RepositorioSimulado {
 
@@ -52,7 +53,7 @@ object RepositorioSimulado {
     fun recordatorios(ahora: LocalDateTime = LocalDateTime.now()): List<Recordatorio> = listOf(
         Recordatorio(
             id = 1,
-            titulo = "Entregar Actividad 1 de Programación Mobile",
+            titulo = "Entregar Actividad 2 de Programación Mobile",
             categoria = ESTUDIO,
             prioridad = Prioridad.Alta,
             descripcion = "Subir el PDF con las capturas y el enlace al repositorio",

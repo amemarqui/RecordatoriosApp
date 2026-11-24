@@ -12,6 +12,8 @@ import com.example.recordatorios.model.Recordatorio
 import com.example.recordatorios.model.ResultadoValidacion
 import com.example.recordatorios.model.ValidadorRecordatorio
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -79,6 +81,38 @@ class ModeloTest {
         )
         assertTrue(r is ResultadoValidacion.Invalido)
         assertEquals(5, (r as ResultadoValidacion.Invalido).errores.size)
+    }
+
+    @Test
+    fun formularioRechazaTituloCortoAunqueTengaEspacios() {
+        val errores = ValidadorRecordatorio.validarFormulario(
+            titulo = "   abc   ", descripcion = "", categoria = RepositorioSimulado.ESTUDIO,
+            prioridad = Prioridad.Baja, categoriasValidas = RepositorioSimulado.categorias
+        )
+        assertNotNull(errores.titulo)
+        assertTrue(errores.hayErrores)
+    }
+
+    @Test
+    fun formularioRechazaDescripcionLargaYCategoriaInexistente() {
+        val errores = ValidadorRecordatorio.validarFormulario(
+            titulo = "Comprar pan", descripcion = "x".repeat(201),
+            categoria = Categoria(99, "Inventada"), prioridad = null,
+            categoriasValidas = RepositorioSimulado.categorias
+        )
+        assertNotNull(errores.descripcion)
+        assertNotNull(errores.categoria)
+        assertNotNull(errores.prioridad)
+    }
+
+    @Test
+    fun formularioValidoNoTieneErrores() {
+        val errores = ValidadorRecordatorio.validarFormulario(
+            titulo = "Comprar pan", descripcion = "x".repeat(200),
+            categoria = RepositorioSimulado.HOGAR, prioridad = Prioridad.Media,
+            categoriasValidas = RepositorioSimulado.categorias
+        )
+        assertFalse(errores.hayErrores)
     }
 
     @Test
