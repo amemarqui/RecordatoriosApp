@@ -1,0 +1,11 @@
+# Configuración del servicio remoto de recordatorios.
+# Copiá este archivo como "api.properties" (en la misma carpeta) y cambiá los valores.
+# api.properties NO se sube al repositorio. No pongas credenciales reales en el código.
+
+# URL base del servicio (tiene que terminar en "/").
+api.baseUrl=https://servidor-simulado.local/api/
+
+# true  = usa el servidor simulado que viene dentro de la app (no necesita internet real,
+#         pero respeta el estado de la red del dispositivo para simular "sin conexión").
+# false = usa el servicio real ubicado en api.baseUrl.
+api.usarServidorSimulado=true

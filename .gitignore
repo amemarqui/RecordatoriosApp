@@ -9,3 +9,6 @@
 .cxx
 local.properties
 app/build/
+# Configuración local del servicio remoto (ver api.properties.example)
+api.properties
+.kotlin/
