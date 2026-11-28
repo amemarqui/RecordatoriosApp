@@ -1,0 +1,23 @@
+flowchart TB
+  subgraph UI["Presentación"]
+    C["Compose<br/>FormularioScreen"] -->|onGuardar| VM["FormularioViewModel<br/>StateFlow&lt;UiState&gt;"]
+  end
+  subgraph DATA["Capa de datos"]
+    R["RecordatoriosRepository<br/>(local-first)"]
+    DAO[("Room<br/>recordatorios<br/>filtrado por uid")]
+    S["SincronizadorRecordatorios"]
+    F["FuenteRemotaFirestore"]
+    A["AutenticacionFirebase"]
+  end
+  FS[("Cloud Firestore<br/>users/uid/reminders/id")]
+  AU["Firebase Auth"]
+  VM -->|"crear(nuevo)"| R
+  R -->|"1. upsert PENDIENTE"| DAO
+  DAO -.->|"Flow (lista)"| VM
+  R -->|"2. sincronizar()"| S
+  S -->|"pendientes(uid)"| DAO
+  S -->|"set(doc id)"| F
+  F --> FS
+  S -->|"3. marcar SINCRONIZADO"| DAO
+  A --> AU
+  R -.->|"uid de la sesión"| A
